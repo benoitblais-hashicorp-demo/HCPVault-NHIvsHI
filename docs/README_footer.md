@@ -1,9 +1,9 @@
-## External Documentation
+# External Documentation
 
 The following resources were used to build this configuration:
 
 | Topic | Link |
-|---|---|
+| --- | --- |
 | Vault Namespaces | [https://developer.hashicorp.com/vault/docs/enterprise/namespaces](https://developer.hashicorp.com/vault/docs/enterprise/namespaces) |
 | KV Secrets Engine v2 | [https://developer.hashicorp.com/vault/docs/secrets/kv/kv-v2](https://developer.hashicorp.com/vault/docs/secrets/kv/kv-v2) |
 | JWT/OIDC Auth Method | [https://developer.hashicorp.com/vault/docs/auth/jwt](https://developer.hashicorp.com/vault/docs/auth/jwt) |
