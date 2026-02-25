@@ -31,8 +31,8 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
 2. **All Variables Are Optional** — Every variable has a default value so the demo can be applied with minimal configuration. Override
    only what is needed for your environment:
    - `vault_address`: URL of the HCP Vault Dedicated cluster (supplied via `VAULT_ADDR` environment variable or `providers.tf`).
-   - `github_repository`: Trusted repository in `org/repo` format. Set to enable the NHI GitHub Actions auth method.
-   - `hcp_terraform_workspace_name`: Workspace name. Set to enable the NHI HCP Terraform auth method.
+   - `github_jwt_repository`: Trusted repository in `org/repo` format. Set to enable the NHI GitHub Actions auth method.
+   - `hcp_jwt_workspace_name`: Workspace name. Set to enable the NHI HCP Terraform auth method.
    - `hi_userpass_username` / `hi_userpass_password`: Set to enable the HI userpass auth method.
    - `hi_github_username` / `hi_github_org`: Set to enable the HI GitHub PAT auth method.
 

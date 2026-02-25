@@ -1,11 +1,11 @@
 output "hi_entity_id" {
   description = "ID of the Human Identity Vault entity. Null when no HI auth method is configured."
-  value       = try(vault_identity_entity.human[0].id, null)
+  value       = try(vault_identity_entity.hi[0].id, null)
 }
 
 output "hi_entity_name" {
   description = "Name of the Human Identity Vault entity. Null when no HI auth method is configured."
-  value       = try(vault_identity_entity.human[0].name, null)
+  value       = try(vault_identity_entity.hi[0].name, null)
 }
 
 output "nhi_entity_id" {
@@ -19,32 +19,32 @@ output "nhi_entity_name" {
 }
 
 output "github_jwt_backend_accessor" {
-  description = "Accessor of the GitHub Actions JWT auth backend in the child namespace. Null when github_repository is not set."
-  value       = try(vault_jwt_auth_backend.github[0].accessor, null)
+  description = "Accessor of the GitHub Actions JWT auth backend in the child namespace. Null when github_jwt_repository is not set."
+  value       = try(vault_jwt_auth_backend.jwt_github[0].accessor, null)
 }
 
 output "github_jwt_backend_path" {
-  description = "Mount path of the GitHub Actions JWT auth backend in the child namespace. Null when github_repository is not set."
-  value       = try(vault_jwt_auth_backend.github[0].path, null)
+  description = "Mount path of the GitHub Actions JWT auth backend in the child namespace. Null when github_jwt_repository is not set."
+  value       = try(vault_jwt_auth_backend.jwt_github[0].path, null)
 }
 
 output "github_jwt_role_name" {
-  description = "Name of the Vault role that GitHub Actions workflows must use during login. Null when github_repository is not set."
-  value       = try(vault_jwt_auth_backend_role.github[0].role_name, null)
+  description = "Name of the Vault role that GitHub Actions workflows must use during login. Null when github_jwt_repository is not set."
+  value       = try(vault_jwt_auth_backend_role.jwt_github[0].role_name, null)
 }
 
 output "hcp_terraform_jwt_backend_accessor" {
-  description = "Accessor of the HCP Terraform JWT auth backend in the child namespace. Null when hcp_terraform_workspace_name is not set."
-  value       = try(vault_jwt_auth_backend.hcp_terraform[0].accessor, null)
+  description = "Accessor of the HCP Terraform JWT auth backend in the child namespace. Null when hcp_jwt_workspace_name is not set."
+  value       = try(vault_jwt_auth_backend.jwt_hcp[0].accessor, null)
 }
 
 output "hcp_terraform_jwt_backend_path" {
-  description = "Mount path of the HCP Terraform JWT auth backend in the child namespace. Null when hcp_terraform_workspace_name is not set."
-  value       = try(vault_jwt_auth_backend.hcp_terraform[0].path, null)
+  description = "Mount path of the HCP Terraform JWT auth backend in the child namespace. Null when hcp_jwt_workspace_name is not set."
+  value       = try(vault_jwt_auth_backend.jwt_hcp[0].path, null)
 }
 
 output "hcp_terraform_jwt_role_name" {
-  description = "Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp_terraform_workspace_name is not set."
+  description = "Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp_jwt_workspace_name is not set."
   value       = try(vault_jwt_auth_backend_role.hcp_terraform[0].role_name, null)
 }
 
@@ -83,14 +83,14 @@ output "nhi_kv_secret_path" {
   value       = "${var.kv_mount_path}/data/${var.nhi_kv_secret_name}"
 }
 
-output "github_policy_name" {
-  description = "Name of the Vault policy attached to the GitHub Actions JWT role. Null when github_repository is not set."
-  value       = try(vault_policy.github[0].name, null)
+output "github_jwt_policy_name" {
+  description = "Name of the Vault policy attached to the GitHub Actions JWT role. Null when github_jwt_repository is not set."
+  value       = try(vault_policy.jwt_github[0].name, null)
 }
 
 output "hcp_terraform_policy_name" {
-  description = "Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp_terraform_workspace_name is not set."
-  value       = try(vault_policy.hcp_terraform[0].name, null)
+  description = "Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp_jwt_workspace_name is not set."
+  value       = try(vault_policy.jwt_hcp[0].name, null)
 }
 
 output "hi_policy_name" {
