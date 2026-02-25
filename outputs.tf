@@ -83,14 +83,9 @@ output "nhi_kv_secret_path" {
   value       = "${var.kv_mount_path}/data/${var.nhi_kv_secret_name}"
 }
 
-output "github_jwt_policy_name" {
-  description = "Name of the Vault policy attached to the GitHub Actions JWT role. Null when github_jwt_repository is not set."
-  value       = try(vault_policy.jwt_github[0].name, null)
-}
-
-output "hcp_terraform_policy_name" {
-  description = "Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp_jwt_workspace_name is not set."
-  value       = try(vault_policy.jwt_hcp[0].name, null)
+output "nhi_policy_name" {
+  description = "Name of the shared Vault policy attached to all NHI JWT roles. Null when no NHI auth method is configured."
+  value       = try(vault_policy.nhi[0].name, null)
 }
 
 output "hi_policy_name" {

@@ -64,17 +64,6 @@ variable "github_jwt_role_name" {
   }
 }
 
-variable "github_jwt_policy_name" {
-  type        = string
-  description = "(Optional) The name of the Vault policy attached to the GitHub Actions JWT role."
-  default     = "jwt_github"
-
-  validation {
-    condition     = length(var.github_jwt_policy_name) > 0
-    error_message = "`github_jwt_policy_name` must not be empty."
-  }
-}
-
 variable "github_jwt_repository" {
   type        = string
   description = "(Optional) Trusted GitHub repository in 'organization/repository' format (e.g., 'my-org/my-repo'). When set, the GitHub Actions JWT auth method is configured and only workflows from this repository can authenticate. Set to null to skip GitHub auth entirely."
@@ -160,17 +149,6 @@ variable "hcp_jwt_role_name" {
   validation {
     condition     = length(var.hcp_jwt_role_name) > 0
     error_message = "`hcp_jwt_role_name` must not be empty."
-  }
-}
-
-variable "hcp_jwt_policy_name" {
-  type        = string
-  description = "(Optional) Name of the Vault policy attached to the HCP Terraform JWT role."
-  default     = "hcp-terraform-readonly"
-
-  validation {
-    condition     = length(var.hcp_jwt_policy_name) > 0
-    error_message = "`hcp_jwt_policy_name` must not be empty."
   }
 }
 

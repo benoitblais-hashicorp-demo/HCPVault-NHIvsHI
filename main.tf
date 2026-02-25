@@ -7,32 +7,18 @@ resource "vault_namespace" "demo" {
 }
 
 # ------------------------------------------------------------------------------
-# GitHub Actions — JWT Auth
+# NHI Shared Policy
 #
-# GitHub exposes an OIDC discovery endpoint at:
-#   https://token.actions.githubusercontent.com
-#
-# The auth backend is configured with that discovery URL so Vault can
-# automatically retrieve the JWKS and validate token signatures.
-#
-# Access is restricted to a single repository via the 'repository' bound claim.
+# A single policy is shared across all Non-Human Identity auth methods
+# (GitHub Actions JWT, HCP Terraform JWT). The policy name matches the NHI
+# entity name for consistent identification in Vault audit logs.
 # ------------------------------------------------------------------------------
 
-resource "vault_jwt_auth_backend" "jwt_github" {
-  count = var.github_jwt_repository != null ? 1 : 0
-
-  namespace          = vault_namespace.demo.path_fq
-  description        = var.github_jwt_backend_description
-  path               = var.github_jwt_backend_path
-  oidc_discovery_url = var.github_jwt_discovery_url
-  bound_issuer       = var.github_jwt_bound_issuer
-}
-
-resource "vault_policy" "jwt_github" {
-  count = length(vault_jwt_auth_backend.jwt_github) > 0 ? 1 : 0
+resource "vault_policy" "nhi" {
+  count = (var.github_jwt_repository != null || var.hcp_jwt_workspace_name != null) ? 1 : 0
 
   namespace = vault_namespace.demo.path_fq
-  name      = var.github_jwt_policy_name
+  name      = var.nhi_entity_name
 
   # KVv2 stores secrets under the '<mount>/data/<path>' API endpoint.
   policy = <<-EOT
@@ -56,8 +42,30 @@ resource "vault_policy" "jwt_github" {
   EOT
 }
 
+# ------------------------------------------------------------------------------
+# GitHub Actions — JWT Auth
+#
+# GitHub exposes an OIDC discovery endpoint at:
+#   https://token.actions.githubusercontent.com
+#
+# The auth backend is configured with that discovery URL so Vault can
+# automatically retrieve the JWKS and validate token signatures.
+#
+# Access is restricted to a single repository via the 'repository' bound claim.
+# ------------------------------------------------------------------------------
+
+resource "vault_jwt_auth_backend" "jwt_github" {
+  count = var.github_jwt_repository != null ? 1 : 0
+
+  namespace          = vault_namespace.demo.path_fq
+  description        = var.github_jwt_backend_description
+  path               = var.github_jwt_backend_path
+  oidc_discovery_url = var.github_jwt_discovery_url
+  bound_issuer       = var.github_jwt_bound_issuer
+}
+
 resource "vault_jwt_auth_backend_role" "jwt_github" {
-  count = length(vault_policy.jwt_github) > 0 ? 1 : 0
+  count = length(vault_jwt_auth_backend.jwt_github) > 0 ? 1 : 0
 
   namespace = vault_namespace.demo.path_fq
   backend   = vault_jwt_auth_backend.jwt_github[0].path
@@ -77,7 +85,7 @@ resource "vault_jwt_auth_backend_role" "jwt_github" {
   # entity alias name, enabling consistent identity across workflow runs.
   user_claim = "repository"
 
-  token_policies          = [vault_policy.jwt_github[0].name]
+  token_policies          = [vault_policy.nhi[0].name]
   token_ttl               = var.github_jwt_token_ttl
   token_max_ttl           = var.github_jwt_token_max_ttl
   token_no_default_policy = true
@@ -104,36 +112,8 @@ resource "vault_jwt_auth_backend" "jwt_hcp" {
   bound_issuer       = var.hcp_jwt_bound_issuer
 }
 
-resource "vault_policy" "jwt_hcp" {
-  count = length(vault_jwt_auth_backend.jwt_hcp) > 0 ? 1 : 0
-
-  namespace = vault_namespace.demo.path_fq
-  name      = var.hcp_jwt_policy_name
-
-  # KVv2 stores secrets under the '<mount>/data/<path>' API endpoint.
-  policy = <<-EOT
-    path "${var.kv_mount_path}/data/${var.nhi_kv_secret_name}" {
-      capabilities = ["read"]
-    }
-
-    # Allow the Vault provider to validate its token on initialization.
-    path "auth/token/lookup-self" {
-      capabilities = ["read"]
-    }
-
-    # Allow token self-renewal and self-revocation.
-    path "auth/token/renew-self" {
-      capabilities = ["update"]
-    }
-
-    path "auth/token/revoke-self" {
-      capabilities = ["update"]
-    }
-  EOT
-}
-
 resource "vault_jwt_auth_backend_role" "jwt_hcp" {
-  count = length(vault_policy.jwt_hcp) > 0 ? 1 : 0
+  count = length(vault_jwt_auth_backend.jwt_hcp) > 0 ? 1 : 0
 
   namespace = vault_namespace.demo.path_fq
   backend   = vault_jwt_auth_backend.jwt_hcp[0].path
@@ -152,7 +132,7 @@ resource "vault_jwt_auth_backend_role" "jwt_hcp" {
   # Use the workspace name as the Vault entity alias for auditability.
   user_claim = "terraform_workspace_name"
 
-  token_policies          = [vault_policy.jwt_hcp[0].name]
+  token_policies          = [vault_policy.nhi[0].name]
   token_ttl               = var.hcp_jwt_token_ttl
   token_max_ttl           = var.hcp_jwt_token_max_ttl
   token_no_default_policy = true
