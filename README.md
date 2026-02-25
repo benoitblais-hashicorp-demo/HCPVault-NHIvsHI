@@ -32,10 +32,11 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
 2. **All Variables Are Optional** — Every variable has a default value so the demo can be applied with minimal configuration. Override
    only what is needed for your environment:
    - `vault_address`: URL of the HCP Vault Dedicated cluster (supplied via `VAULT_ADDR` environment variable or `providers.tf`).
-   - `github_repository`: Trusted repository in `org/repo` format. Set to enable the NHI GitHub Actions auth method.
-   - `hcp_terraform_workspace_name`: Workspace name. Set to enable the NHI HCP Terraform auth method.
-   - `hi_userpass_username` / `hi_userpass_password`: Set to enable the HI userpass auth method.
-   - `hi_github_username` / `hi_github_org`: Set to enable the HI GitHub PAT auth method.
+   - `github_jwt_repository`: Trusted repository in `org/repo` format. Set to enable the NHI GitHub Actions auth method.
+   - `hcp_jwt_workspace_name`: Workspace name. Set to enable the NHI HCP Terraform auth method.
+   - `kv_mount_path`: Mount path for the KVv2 secrets engine (e.g., `secret`). Set to enable the KVv2 mount and demo secrets.
+   - `userpass_username`: Set to enable the HI userpass auth method. The password is automatically generated.
+   - `github_username` / `github_org`: Set to enable the HI GitHub PAT auth method.
 
 3. **How Non-Human Identities Authenticate (NHI Flow)**:
 
@@ -49,10 +50,10 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
        url: ${{ secrets.VAULT_ADDR }}
        namespace: ${{ secrets.VAULT_NAMESPACE }}
        method: jwt
-       path: github
-       role: github-actions
+       path: jwt_github
+       role: jwt_github
        jwtGithubAudience: https://vault.hashicorp.cloud
-       secrets: secret/data/demo/nhi-credentials *
+       secrets: <kv_mount_path>/data/demo/nhi-credentials *
    ```
 
    **HCP Terraform** — The workspace uses dynamic provider credentials. HCP Terraform automatically generates and injects a short-lived
@@ -74,10 +75,10 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
    ```bash
    vault login -method=userpass \
      -path=userpass \
-     username=<hi_userpass_username> \
-     password=<hi_userpass_password>
+     username=<userpass_username> \
+     password=<userpass_password output>
 
-   vault kv get secret/demo/hi-credentials
+   vault kv get <kv_mount_path>/demo/hi-credentials
    ```
 
    **GitHub Personal Access Token** — The operator authenticates using a PAT generated in the GitHub UI. The token is a static secret
@@ -88,7 +89,7 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
      -path=github-hi \
      token=<github_PAT>
 
-   vault kv get secret/demo/hi-credentials
+   vault kv get <kv_mount_path>/demo/hi-credentials
    ```
 
 ## Permissions
@@ -132,7 +133,7 @@ Documentation:
 ## Features
 
 - **Child namespace isolation** — All resources are created inside a dedicated child namespace, keeping the demo completely separate from other workloads.
-- **KVv2 secrets engine** — A versioned key-value secrets engine is mounted in the child namespace with two pre-populated demo secrets: one scoped to NHI (`demo/nhi-credentials`) and one scoped to HI (`demo/hi-credentials`).
+- **KVv2 secrets engine** — A versioned key-value secrets engine is mounted at the path configured by `kv_mount_path` (e.g., `secret`) in the child namespace with two pre-populated demo secrets: one scoped to NHI (`demo/nhi-credentials`) and one scoped to HI (`demo/hi-credentials`). The mount and secrets are only created when `kv_mount_path` is set.
 - **Two distinct identity entities** — `nhi-demo-app` groups all machine auth methods; `hi-demo-operator` groups all human auth methods. Both are visible in the Vault UI under **Access → Entities**.
 - **GitHub Actions JWT auth (NHI)** — Configured against `https://token.actions.githubusercontent.com`. Access is restricted to a single repository via the `repository` bound claim. Token TTL: 5 minutes.
 - **HCP Terraform JWT auth (NHI)** — Configured against `https://app.terraform.io`. Access is restricted to a single workspace via the `terraform_workspace_name` bound claim. Token TTL: 5 minutes.
@@ -155,6 +156,8 @@ The following requirements are needed by this module:
 
 - <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) (~> 1.10)
 
+- <a name="requirement_random"></a> [random](#requirement\_random) (~> 3.6)
+
 - <a name="requirement_vault"></a> [vault](#requirement\_vault) (~> 5.7)
 
 ## Modules
@@ -169,7 +172,23 @@ No required inputs.
 
 The following input variables are optional (have default values):
 
-### <a name="input_github_audience"></a> [github\_audience](#input\_github\_audience)
+### <a name="input_github_backend_description"></a> [github\_backend\_description](#input\_github\_backend\_description)
+
+Description: (Optional) The description of the GitHub PAT auth backend.
+
+Type: `string`
+
+Default: `"GitHub auth method for human operators using Personal Access Tokens."`
+
+### <a name="input_github_backend_path"></a> [github\_backend\_path](#input\_github\_backend\_path)
+
+Description: (Optional) Path to mount the GitHub PAT auth backend.
+
+Type: `string`
+
+Default: `"github"`
+
+### <a name="input_github_jwt_audience"></a> [github\_jwt\_audience](#input\_github\_jwt\_audience)
 
 Description: (Optional) The JWT audience that GitHub Actions workflows must request when generating an OIDC token. Must match the 'audience' parameter in the 'id-token' step of the workflow.
 
@@ -191,7 +210,7 @@ Description: (Optional) Path to mount the JWT auth backend for the GitHub Action
 
 Type: `string`
 
-Default: `"github"`
+Default: `"jwt_github"`
 
 ### <a name="input_github_jwt_bound_issuer"></a> [github\_jwt\_bound\_issuer](#input\_github\_jwt\_bound\_issuer)
 
@@ -209,23 +228,7 @@ Type: `string`
 
 Default: `"https://token.actions.githubusercontent.com"`
 
-### <a name="input_github_jwt_role_name"></a> [github\_jwt\_role\_name](#input\_github\_jwt\_role\_name)
-
-Description: (Optional) Name of the Vault role used by GitHub Actions workflows during JWT login.
-
-Type: `string`
-
-Default: `"github-actions"`
-
-### <a name="input_github_policy_name"></a> [github\_policy\_name](#input\_github\_policy\_name)
-
-Description: (Optional) The name of the Vault policy attached to the GitHub Actions JWT role.
-
-Type: `string`
-
-Default: `"github-readonly"`
-
-### <a name="input_github_repository"></a> [github\_repository](#input\_github\_repository)
+### <a name="input_github_jwt_repository"></a> [github\_jwt\_repository](#input\_github\_jwt\_repository)
 
 Description: (Optional) Trusted GitHub repository in 'organization/repository' format (e.g., 'my-org/my-repo'). When set, the GitHub Actions JWT auth method is configured and only workflows from this repository can authenticate. Set to null to skip GitHub auth entirely.
 
@@ -233,7 +236,15 @@ Type: `string`
 
 Default: `null`
 
-### <a name="input_github_token_max_ttl"></a> [github\_token\_max\_ttl](#input\_github\_token\_max\_ttl)
+### <a name="input_github_jwt_role_name"></a> [github\_jwt\_role\_name](#input\_github\_jwt\_role\_name)
+
+Description: (Optional) Name of the Vault role used by GitHub Actions workflows during JWT login.
+
+Type: `string`
+
+Default: `"jwt_github_role"`
+
+### <a name="input_github_jwt_token_max_ttl"></a> [github\_jwt\_token\_max\_ttl](#input\_github\_jwt\_token\_max\_ttl)
 
 Description: (Optional) Maximum lifetime of a GitHub Actions Vault token, in seconds.
 
@@ -241,7 +252,7 @@ Type: `number`
 
 Default: `600`
 
-### <a name="input_github_token_ttl"></a> [github\_token\_ttl](#input\_github\_token\_ttl)
+### <a name="input_github_jwt_token_ttl"></a> [github\_jwt\_token\_ttl](#input\_github\_jwt\_token\_ttl)
 
 Description: (Optional) Default lifetime of a GitHub Actions Vault token, in seconds.
 
@@ -249,7 +260,39 @@ Type: `number`
 
 Default: `300`
 
-### <a name="input_hcp_terraform_jwt_backend_description"></a> [hcp\_terraform\_jwt\_backend\_description](#input\_hcp\_terraform\_jwt\_backend\_description)
+### <a name="input_github_org"></a> [github\_org](#input\_github\_org)
+
+Description: (Optional) GitHub organization used by the PAT auth backend. Required when `github_username` is set.
+
+Type: `string`
+
+Default: `null`
+
+### <a name="input_github_token_max_ttl"></a> [github\_token\_max\_ttl](#input\_github\_token\_max\_ttl)
+
+Description: (Optional) Maximum lifetime of a human operator GitHub PAT Vault token, in seconds.
+
+Type: `number`
+
+Default: `14400`
+
+### <a name="input_github_token_ttl"></a> [github\_token\_ttl](#input\_github\_token\_ttl)
+
+Description: (Optional) Default lifetime of a human operator GitHub PAT Vault token, in seconds.
+
+Type: `number`
+
+Default: `3600`
+
+### <a name="input_github_username"></a> [github\_username](#input\_github\_username)
+
+Description: (Optional) GitHub username (login) of the operator allowed to authenticate with a PAT. When set, the GitHub PAT auth method is configured. Set to null to skip.
+
+Type: `string`
+
+Default: `null`
+
+### <a name="input_hcp_jwt_backend_description"></a> [hcp\_jwt\_backend\_description](#input\_hcp\_jwt\_backend\_description)
 
 Description: (Optional) The description of the HCP Terraform JWT auth backend.
 
@@ -257,15 +300,15 @@ Type: `string`
 
 Default: `"JWT auth method for HCP Terraform workload identity tokens."`
 
-### <a name="input_hcp_terraform_jwt_backend_path"></a> [hcp\_terraform\_jwt\_backend\_path](#input\_hcp\_terraform\_jwt\_backend\_path)
+### <a name="input_hcp_jwt_backend_path"></a> [hcp\_jwt\_backend\_path](#input\_hcp\_jwt\_backend\_path)
 
 Description: (Optional) Path to mount the JWT auth backend for the HCP Terraform JWT.
 
 Type: `string`
 
-Default: `"hcp-terraform"`
+Default: `"jwt_hcp"`
 
-### <a name="input_hcp_terraform_jwt_bound_issuer"></a> [hcp\_terraform\_jwt\_bound\_issuer](#input\_hcp\_terraform\_jwt\_bound\_issuer)
+### <a name="input_hcp_jwt_bound_issuer"></a> [hcp\_jwt\_bound\_issuer](#input\_hcp\_jwt\_bound\_issuer)
 
 Description: (Optional) Expected issuer (iss claim) of HCP Terraform workload identity JWT tokens.
 
@@ -273,7 +316,7 @@ Type: `string`
 
 Default: `"https://app.terraform.io"`
 
-### <a name="input_hcp_terraform_jwt_discovery_url"></a> [hcp\_terraform\_jwt\_discovery\_url](#input\_hcp\_terraform\_jwt\_discovery\_url)
+### <a name="input_hcp_jwt_discovery_url"></a> [hcp\_jwt\_discovery\_url](#input\_hcp\_jwt\_discovery\_url)
 
 Description: (Optional) OIDC discovery URL used by Vault to retrieve the HCP Terraform JWKS and validate token signatures.
 
@@ -281,23 +324,15 @@ Type: `string`
 
 Default: `"https://app.terraform.io"`
 
-### <a name="input_hcp_terraform_jwt_role_name"></a> [hcp\_terraform\_jwt\_role\_name](#input\_hcp\_terraform\_jwt\_role\_name)
+### <a name="input_hcp_jwt_role_name"></a> [hcp\_jwt\_role\_name](#input\_hcp\_jwt\_role\_name)
 
 Description: (Optional) Name of the Vault role used by the HCP Terraform workspace during JWT login.
 
 Type: `string`
 
-Default: `"hcp-terraform-workspace"`
+Default: `"jwt_hcp_role"`
 
-### <a name="input_hcp_terraform_policy_name"></a> [hcp\_terraform\_policy\_name](#input\_hcp\_terraform\_policy\_name)
-
-Description: (Optional) Name of the Vault policy attached to the HCP Terraform JWT role.
-
-Type: `string`
-
-Default: `"hcp-terraform-readonly"`
-
-### <a name="input_hcp_terraform_token_max_ttl"></a> [hcp\_terraform\_token\_max\_ttl](#input\_hcp\_terraform\_token\_max\_ttl)
+### <a name="input_hcp_jwt_token_max_ttl"></a> [hcp\_jwt\_token\_max\_ttl](#input\_hcp\_jwt\_token\_max\_ttl)
 
 Description: (Optional) Maximum lifetime of an HCP Terraform Vault token, in seconds.
 
@@ -305,7 +340,7 @@ Type: `number`
 
 Default: `600`
 
-### <a name="input_hcp_terraform_token_ttl"></a> [hcp\_terraform\_token\_ttl](#input\_hcp\_terraform\_token\_ttl)
+### <a name="input_hcp_jwt_token_ttl"></a> [hcp\_jwt\_token\_ttl](#input\_hcp\_jwt\_token\_ttl)
 
 Description: (Optional) Default lifetime of an HCP Terraform Vault token, in seconds.
 
@@ -313,7 +348,7 @@ Type: `number`
 
 Default: `300`
 
-### <a name="input_hcp_terraform_workspace_name"></a> [hcp\_terraform\_workspace\_name](#input\_hcp\_terraform\_workspace\_name)
+### <a name="input_hcp_jwt_workspace_name"></a> [hcp\_jwt\_workspace\_name](#input\_hcp\_jwt\_workspace\_name)
 
 Description: (Optional) The HCP Terraform workspace name that is allowed to access the KVv2 secret. When set, the HCP Terraform JWT auth method is configured and only runs from this workspace can authenticate. Set to null to skip HCP Terraform auth entirely.
 
@@ -336,54 +371,6 @@ Description: (Optional) Name of the Vault identity entity that represents the hu
 Type: `string`
 
 Default: `"hi-demo-operator"`
-
-### <a name="input_hi_github_backend_description"></a> [hi\_github\_backend\_description](#input\_hi\_github\_backend\_description)
-
-Description: (Optional) The description of the GitHub PAT auth backend.
-
-Type: `string`
-
-Default: `"GitHub auth method for human operators using Personal Access Tokens."`
-
-### <a name="input_hi_github_backend_path"></a> [hi\_github\_backend\_path](#input\_hi\_github\_backend\_path)
-
-Description: (Optional) Path to mount the GitHub PAT auth backend.
-
-Type: `string`
-
-Default: `"github-hi"`
-
-### <a name="input_hi_github_org"></a> [hi\_github\_org](#input\_hi\_github\_org)
-
-Description: (Optional) GitHub organization used by the PAT auth backend. Required when `hi_github_username` is set.
-
-Type: `string`
-
-Default: `null`
-
-### <a name="input_hi_github_token_max_ttl"></a> [hi\_github\_token\_max\_ttl](#input\_hi\_github\_token\_max\_ttl)
-
-Description: (Optional) Maximum lifetime of a human operator GitHub PAT Vault token, in seconds.
-
-Type: `number`
-
-Default: `14400`
-
-### <a name="input_hi_github_token_ttl"></a> [hi\_github\_token\_ttl](#input\_hi\_github\_token\_ttl)
-
-Description: (Optional) Default lifetime of a human operator GitHub PAT Vault token, in seconds.
-
-Type: `number`
-
-Default: `3600`
-
-### <a name="input_hi_github_username"></a> [hi\_github\_username](#input\_hi\_github\_username)
-
-Description: (Optional) GitHub username (login) of the operator allowed to authenticate with a PAT. When set, the GitHub PAT auth method is configured. Set to null to skip.
-
-Type: `string`
-
-Default: `null`
 
 ### <a name="input_hi_kv_secret_data"></a> [hi\_kv\_secret\_data](#input\_hi\_kv\_secret\_data)
 
@@ -409,62 +396,6 @@ Type: `string`
 
 Default: `"demo/hi-credentials"`
 
-### <a name="input_hi_policy_name"></a> [hi\_policy\_name](#input\_hi\_policy\_name)
-
-Description: (Optional) Name of the Vault policy attached to all Human Identity roles.
-
-Type: `string`
-
-Default: `"human-readonly"`
-
-### <a name="input_hi_userpass_backend_description"></a> [hi\_userpass\_backend\_description](#input\_hi\_userpass\_backend\_description)
-
-Description: (Optional) The description of the userpass auth backend.
-
-Type: `string`
-
-Default: `"Userpass auth method for human operators."`
-
-### <a name="input_hi_userpass_backend_path"></a> [hi\_userpass\_backend\_path](#input\_hi\_userpass\_backend\_path)
-
-Description: (Optional) Path to mount the userpass auth backend.
-
-Type: `string`
-
-Default: `"userpass"`
-
-### <a name="input_hi_userpass_password"></a> [hi\_userpass\_password](#input\_hi\_userpass\_password)
-
-Description: (Optional) Password for the userpass credential. Required when `hi_userpass_username` is set.
-
-Type: `string`
-
-Default: `null`
-
-### <a name="input_hi_userpass_token_max_ttl"></a> [hi\_userpass\_token\_max\_ttl](#input\_hi\_userpass\_token\_max\_ttl)
-
-Description: (Optional) Maximum lifetime of a human operator userpass Vault token, in seconds.
-
-Type: `number`
-
-Default: `14400`
-
-### <a name="input_hi_userpass_token_ttl"></a> [hi\_userpass\_token\_ttl](#input\_hi\_userpass\_token\_ttl)
-
-Description: (Optional) Default lifetime of a human operator userpass Vault token, in seconds.
-
-Type: `number`
-
-Default: `3600`
-
-### <a name="input_hi_userpass_username"></a> [hi\_userpass\_username](#input\_hi\_userpass\_username)
-
-Description: (Optional) Username for the userpass credential. When set, the userpass auth method and user are configured. Set to null to skip.
-
-Type: `string`
-
-Default: `null`
-
 ### <a name="input_kv_mount_description"></a> [kv\_mount\_description](#input\_kv\_mount\_description)
 
 Description: (Optional) Human-friendly description of the mount for the KVv2 secrets engine.
@@ -475,7 +406,7 @@ Default: `"KVv2 secrets engine for the Non-Human Identity vs Human Identity demo
 
 ### <a name="input_kv_mount_path"></a> [kv\_mount\_path](#input\_kv\_mount\_path)
 
-Description: (Optional) Where the secret backend will be mounted for the KVv2 secrets engine.
+Description: (Optional) Where the secret backend will be mounted for the KVv2 secrets engine. Set to null to skip KVv2 creation.
 
 Type: `string`
 
@@ -529,127 +460,131 @@ Type: `string`
 
 Default: `"demo/nhi-credentials"`
 
+### <a name="input_userpass_backend_description"></a> [userpass\_backend\_description](#input\_userpass\_backend\_description)
+
+Description: (Optional) The description of the userpass auth backend.
+
+Type: `string`
+
+Default: `"Userpass auth method for human operators."`
+
+### <a name="input_userpass_backend_path"></a> [userpass\_backend\_path](#input\_userpass\_backend\_path)
+
+Description: (Optional) Path to mount the userpass auth backend.
+
+Type: `string`
+
+Default: `"userpass"`
+
+### <a name="input_userpass_token_max_ttl"></a> [userpass\_token\_max\_ttl](#input\_userpass\_token\_max\_ttl)
+
+Description: (Optional) Maximum lifetime of a human operator userpass Vault token, in seconds.
+
+Type: `number`
+
+Default: `14400`
+
+### <a name="input_userpass_token_ttl"></a> [userpass\_token\_ttl](#input\_userpass\_token\_ttl)
+
+Description: (Optional) Default lifetime of a human operator userpass Vault token, in seconds.
+
+Type: `number`
+
+Default: `3600`
+
+### <a name="input_userpass_username"></a> [userpass\_username](#input\_userpass\_username)
+
+Description: (Optional) Username for the userpass credential. When set, the userpass auth method and user are configured. Set to null to skip.
+
+Type: `string`
+
+Default: `null`
+
 ## Resources
 
 The following resources are used by this module:
 
+- [random_password.userpass](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) (resource)
 - [vault_auth_backend.userpass](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/auth_backend) (resource)
-- [vault_generic_endpoint.userpass_user](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/generic_endpoint) (resource)
-- [vault_github_auth_backend.hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/github_auth_backend) (resource)
-- [vault_github_user.hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/github_user) (resource)
-- [vault_identity_entity.human](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity) (resource)
+- [vault_generic_endpoint.userpass](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/generic_endpoint) (resource)
+- [vault_github_auth_backend.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/github_auth_backend) (resource)
+- [vault_github_user.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/github_user) (resource)
+- [vault_identity_entity.hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity) (resource)
 - [vault_identity_entity.nhi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity) (resource)
 - [vault_identity_entity_alias.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
-- [vault_identity_entity_alias.github_hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
-- [vault_identity_entity_alias.hcp_terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
+- [vault_identity_entity_alias.jwt_github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
+- [vault_identity_entity_alias.jwt_hcp](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
 - [vault_identity_entity_alias.userpass](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
-- [vault_jwt_auth_backend.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend) (resource)
-- [vault_jwt_auth_backend.hcp_terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend) (resource)
-- [vault_jwt_auth_backend_role.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend_role) (resource)
-- [vault_jwt_auth_backend_role.hcp_terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend_role) (resource)
+- [vault_jwt_auth_backend.jwt_github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend) (resource)
+- [vault_jwt_auth_backend.jwt_hcp](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend) (resource)
+- [vault_jwt_auth_backend_role.jwt_github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend_role) (resource)
+- [vault_jwt_auth_backend_role.jwt_hcp](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend_role) (resource)
 - [vault_kv_secret_v2.hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/kv_secret_v2) (resource)
 - [vault_kv_secret_v2.nhi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/kv_secret_v2) (resource)
 - [vault_mount.kvv2](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/mount) (resource)
 - [vault_namespace.demo](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/namespace) (resource)
-- [vault_policy.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
-- [vault_policy.hcp_terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
 - [vault_policy.human](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
+- [vault_policy.nhi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
 
 ## Outputs
 
 The following outputs are exported:
 
-### <a name="output_github_jwt_backend_accessor"></a> [github\_jwt\_backend\_accessor](#output\_github\_jwt\_backend\_accessor)
-
-Description: Accessor of the GitHub Actions JWT auth backend in the child namespace. Null when github\_repository is not set.
-
-### <a name="output_github_jwt_backend_path"></a> [github\_jwt\_backend\_path](#output\_github\_jwt\_backend\_path)
-
-Description: Mount path of the GitHub Actions JWT auth backend in the child namespace. Null when github\_repository is not set.
-
-### <a name="output_github_jwt_role_name"></a> [github\_jwt\_role\_name](#output\_github\_jwt\_role\_name)
-
-Description: Name of the Vault role that GitHub Actions workflows must use during login. Null when github\_repository is not set.
-
-### <a name="output_github_policy_name"></a> [github\_policy\_name](#output\_github\_policy\_name)
-
-Description: Name of the Vault policy attached to the GitHub Actions JWT role. Null when github\_repository is not set.
-
-### <a name="output_hcp_terraform_jwt_backend_accessor"></a> [hcp\_terraform\_jwt\_backend\_accessor](#output\_hcp\_terraform\_jwt\_backend\_accessor)
-
-Description: Accessor of the HCP Terraform JWT auth backend in the child namespace. Null when hcp\_terraform\_workspace\_name is not set.
-
-### <a name="output_hcp_terraform_jwt_backend_path"></a> [hcp\_terraform\_jwt\_backend\_path](#output\_hcp\_terraform\_jwt\_backend\_path)
-
-Description: Mount path of the HCP Terraform JWT auth backend in the child namespace. Null when hcp\_terraform\_workspace\_name is not set.
-
-### <a name="output_hcp_terraform_jwt_role_name"></a> [hcp\_terraform\_jwt\_role\_name](#output\_hcp\_terraform\_jwt\_role\_name)
-
-Description: Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp\_terraform\_workspace\_name is not set.
-
-### <a name="output_hcp_terraform_policy_name"></a> [hcp\_terraform\_policy\_name](#output\_hcp\_terraform\_policy\_name)
-
-Description: Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp\_terraform\_workspace\_name is not set.
-
-### <a name="output_hi_entity_id"></a> [hi\_entity\_id](#output\_hi\_entity\_id)
-
-Description: ID of the Human Identity Vault entity. Null when no HI auth method is configured.
-
-### <a name="output_hi_entity_name"></a> [hi\_entity\_name](#output\_hi\_entity\_name)
+### <a name="output_entity_name_hi"></a> [entity\_name\_hi](#output\_entity\_name\_hi)
 
 Description: Name of the Human Identity Vault entity. Null when no HI auth method is configured.
 
-### <a name="output_hi_github_backend_accessor"></a> [hi\_github\_backend\_accessor](#output\_hi\_github\_backend\_accessor)
+### <a name="output_entity_name_nhi"></a> [entity\_name\_nhi](#output\_entity\_name\_nhi)
 
-Description: Accessor of the GitHub PAT auth backend in the child namespace. Null when hi\_github\_username is not set.
+Description: Name of the Non-Human Identity Vault entity. Null when no NHI auth method is configured.
 
-### <a name="output_hi_github_backend_path"></a> [hi\_github\_backend\_path](#output\_hi\_github\_backend\_path)
+### <a name="output_github_backend_path"></a> [github\_backend\_path](#output\_github\_backend\_path)
 
-Description: Mount path of the GitHub PAT auth backend in the child namespace. Null when hi\_github\_username is not set.
+Description: Mount path of the GitHub PAT auth backend in the child namespace. Null when github\_username is not set.
 
-### <a name="output_hi_kv_secret_path"></a> [hi\_kv\_secret\_path](#output\_hi\_kv\_secret\_path)
+### <a name="output_jwt_github_backend_path"></a> [jwt\_github\_backend\_path](#output\_jwt\_github\_backend\_path)
 
-Description: Full KVv2 API path of the Human Identity demo secret. Null when no HI auth method is configured.
+Description: Mount path of the GitHub Actions JWT auth backend in the child namespace. Null when github\_jwt\_repository is not set.
 
-### <a name="output_hi_policy_name"></a> [hi\_policy\_name](#output\_hi\_policy\_name)
+### <a name="output_jwt_github_role_name"></a> [jwt\_github\_role\_name](#output\_jwt\_github\_role\_name)
 
-Description: Name of the Vault policy attached to all Human Identity roles. Null when no HI auth method is configured.
+Description: Name of the Vault role that GitHub Actions workflows must use during login. Null when github\_jwt\_repository is not set.
 
-### <a name="output_hi_userpass_backend_accessor"></a> [hi\_userpass\_backend\_accessor](#output\_hi\_userpass\_backend\_accessor)
+### <a name="output_jwt_hcp_backend_path"></a> [jwt\_hcp\_backend\_path](#output\_jwt\_hcp\_backend\_path)
 
-Description: Accessor of the userpass auth backend in the child namespace. Null when hi\_userpass\_username is not set.
+Description: Mount path of the HCP Terraform JWT auth backend in the child namespace. Null when hcp\_jwt\_workspace\_name is not set.
 
-### <a name="output_hi_userpass_backend_path"></a> [hi\_userpass\_backend\_path](#output\_hi\_userpass\_backend\_path)
+### <a name="output_jwt_hcp_role_name"></a> [jwt\_hcp\_role\_name](#output\_jwt\_hcp\_role\_name)
 
-Description: Mount path of the userpass auth backend in the child namespace. Null when hi\_userpass\_username is not set.
+Description: Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp\_jwt\_workspace\_name is not set.
 
-### <a name="output_hi_userpass_password"></a> [hi\_userpass\_password](#output\_hi\_userpass\_password)
+### <a name="output_kvv2_mount_path"></a> [kvv2\_mount\_path](#output\_kvv2\_mount\_path)
 
-Description: Password configured for the userpass auth method. Null when hi\_userpass\_password is not set.
+Description: Mount path of the KVv2 secrets engine inside the child namespace. Null when kv\_mount\_path is not set.
 
-### <a name="output_hi_userpass_username"></a> [hi\_userpass\_username](#output\_hi\_userpass\_username)
+### <a name="output_kvv2_secret_path_hi"></a> [kvv2\_secret\_path\_hi](#output\_kvv2\_secret\_path\_hi)
 
-Description: Username configured for the userpass auth method. Null when hi\_userpass\_username is not set.
+Description: Full KVv2 API path of the Human Identity demo secret. Null when the KVv2 mount or no HI auth method is configured.
 
-### <a name="output_kv_mount_path"></a> [kv\_mount\_path](#output\_kv\_mount\_path)
+### <a name="output_kvv2_secret_path_nhi"></a> [kvv2\_secret\_path\_nhi](#output\_kvv2\_secret\_path\_nhi)
 
-Description: Mount path of the KVv2 secrets engine inside the child namespace.
+Description: Full KVv2 API path of the Non-Human Identity demo secret (for use with the Vault CLI or API). Null when the KVv2 mount or no NHI auth method is configured.
 
 ### <a name="output_namespace_path"></a> [namespace\_path](#output\_namespace\_path)
 
 Description: Fully qualified path of the child namespace.
 
-### <a name="output_nhi_entity_id"></a> [nhi\_entity\_id](#output\_nhi\_entity\_id)
+### <a name="output_userpass_backend_path"></a> [userpass\_backend\_path](#output\_userpass\_backend\_path)
 
-Description: ID of the Non-Human Identity Vault entity. Null when no NHI auth method is configured.
+Description: Mount path of the userpass auth backend in the child namespace. Null when userpass\_username is not set.
 
-### <a name="output_nhi_entity_name"></a> [nhi\_entity\_name](#output\_nhi\_entity\_name)
+### <a name="output_userpass_password"></a> [userpass\_password](#output\_userpass\_password)
 
-Description: Name of the Non-Human Identity Vault entity. Null when no NHI auth method is configured.
+Description: Generated password for the userpass auth method. Null when userpass\_username is not set.
 
-### <a name="output_nhi_kv_secret_path"></a> [nhi\_kv\_secret\_path](#output\_nhi\_kv\_secret\_path)
+### <a name="output_userpass_username"></a> [userpass\_username](#output\_userpass\_username)
 
-Description: Full KVv2 API path of the Non-Human Identity demo secret (for use with the Vault CLI or API).
+Description: Username configured for the userpass auth method. Null when userpass\_username is not set.
 
 <!-- markdownlint-enable -->
 # External Documentation
