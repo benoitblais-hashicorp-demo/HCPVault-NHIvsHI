@@ -100,7 +100,7 @@ output "hi_policy_name" {
 
 output "hi_userpass_password" {
   description = "Password configured for the userpass auth method. Null when hi_userpass_password is not set."
-  value       = var.hi_userpass_password != null ? nonsensitive(var.hi_userpass_password) : null
+  value       = nonsensitive(var.hi_userpass_password)
 }
 
 output "hi_userpass_username" {
