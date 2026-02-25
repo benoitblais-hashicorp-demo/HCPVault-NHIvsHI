@@ -99,7 +99,7 @@ resource "vault_jwt_auth_backend_role" "jwt_github" {
 #
 # The standard audience for Vault dynamic provider credentials is
 # "vault.workload.identity". Access is restricted to a single workspace via
-# the 'terraform_workspace_id' bound claim.
+# the 'terraform_workspace_name' bound claim.
 # ------------------------------------------------------------------------------
 
 resource "vault_jwt_auth_backend" "jwt_hcp" {
@@ -139,24 +139,32 @@ resource "vault_jwt_auth_backend_role" "jwt_hcp" {
 }
 
 # ------------------------------------------------------------------------------
-# Human Identity — Userpass Auth
+# HI Shared Policy
 #
-# Classic username/password login for human operators. A dedicated userpass
-# backend is enabled and a single user is created. The operator's token is
-# scoped to the same read-only policy as the NHI roles, demonstrating that the
-# human and machine identities converge on the same entity and permissions.
+# A single policy is shared across all Human Identity auth methods
+# (Userpass, GitHub PAT). The policy name matches the HI entity name
+# for consistent identification in Vault audit logs.
 # ------------------------------------------------------------------------------
 
-# Shared policy for all Human Identity auth methods.
 resource "vault_policy" "human" {
-  count = (var.hi_userpass_username != null || var.hi_github_username != null) ? 1 : 0
+  count = (var.userpass_username != null || var.github_username != null) ? 1 : 0
 
   namespace = vault_namespace.demo.path_fq
-  name      = var.hi_policy_name
+  name      = var.hi_entity_name
 
   # KVv2 stores secrets under the '<mount>/data/<path>' API endpoint.
+  # Listing and reading metadata is required for the secret name to be
+  # visible when browsing the KVv2 mount in the Vault UI.
   policy = <<-EOT
     path "${var.kv_mount_path}/data/${var.hi_kv_secret_name}" {
+      capabilities = ["read"]
+    }
+
+    path "${var.kv_mount_path}/metadata/*" {
+      capabilities = ["list"]
+    }
+
+    path "${var.kv_mount_path}/metadata/${var.hi_kv_secret_name}" {
       capabilities = ["read"]
     }
 
@@ -171,30 +179,49 @@ resource "vault_policy" "human" {
   EOT
 }
 
+# ------------------------------------------------------------------------------
+# Human Identity — Userpass Auth
+#
+# Classic username/password login for human operators. A dedicated userpass
+# backend is enabled and a single user is created. The operator's token is
+# scoped to the same read-only policy as the HI roles, demonstrating that the
+# human and machine identities converge on the same entity and permissions.
+# ------------------------------------------------------------------------------
+
 resource "vault_auth_backend" "userpass" {
-  count = var.hi_userpass_username != null ? 1 : 0
+  count = var.userpass_username != null ? 1 : 0
 
   namespace   = vault_namespace.demo.path_fq
   type        = "userpass"
-  path        = var.hi_userpass_backend_path
-  description = var.hi_userpass_backend_description
+  path        = var.userpass_backend_path
+  description = var.userpass_backend_description
+}
+
+# Generates a random password for the userpass user so no static secret
+# needs to be supplied or stored outside of Terraform state.
+resource "random_password" "userpass" {
+  count = length(vault_auth_backend.userpass) > 0 ? 1 : 0
+
+  length           = 20
+  special          = true
+  override_special = "!#$%&*-_=+?"
 }
 
 # Creates the userpass user and binds the human policy.
 # vault_generic_endpoint is used because no dedicated userpass-user resource
 # exists in the Vault provider; the write is idempotent.
-resource "vault_generic_endpoint" "userpass_user" {
-  count = var.hi_userpass_username != null && var.hi_userpass_password != null ? 1 : 0
+resource "vault_generic_endpoint" "userpass" {
+  count = length(vault_auth_backend.userpass) > 0 ? 1 : 0
 
   namespace            = vault_namespace.demo.path_fq
-  path                 = "auth/${vault_auth_backend.userpass[0].path}/users/${var.hi_userpass_username}"
+  path                 = "auth/${vault_auth_backend.userpass[0].path}/users/${var.userpass_username}"
   ignore_absent_fields = true
 
   data_json = jsonencode({
-    password       = var.hi_userpass_password
+    password       = random_password.userpass[0].result
     token_policies = [vault_policy.human[0].name]
-    token_ttl      = var.hi_userpass_token_ttl
-    token_max_ttl  = var.hi_userpass_token_max_ttl
+    token_ttl      = var.userpass_token_ttl
+    token_max_ttl  = var.userpass_token_max_ttl
   })
 }
 
@@ -206,110 +233,26 @@ resource "vault_generic_endpoint" "userpass_user" {
 # token=<PAT>'. Access is restricted to a single GitHub username.
 # ------------------------------------------------------------------------------
 
-resource "vault_github_auth_backend" "hi" {
-  count = var.hi_github_username != null ? 1 : 0
+resource "vault_github_auth_backend" "github" {
+  count = var.github_username != null ? 1 : 0
 
   namespace    = vault_namespace.demo.path_fq
-  path         = var.hi_github_backend_path
-  organization = var.hi_github_org
-  description  = var.hi_github_backend_description
+  path         = var.github_backend_path
+  organization = var.github_org
+  description  = var.github_backend_description
 
-  token_ttl     = var.hi_github_token_ttl
-  token_max_ttl = var.hi_github_token_max_ttl
+  token_ttl     = var.github_token_ttl
+  token_max_ttl = var.github_token_max_ttl
 }
 
 # Maps the specific GitHub user to the human policy.
-resource "vault_github_user" "hi" {
-  count = var.hi_github_username != null ? 1 : 0
+resource "vault_github_user" "github" {
+  count = length(vault_github_auth_backend.github) > 0 ? 1 : 0
 
   namespace = vault_namespace.demo.path_fq
-  backend   = vault_github_auth_backend.hi[0].path
-  user      = var.hi_github_username
+  backend   = vault_github_auth_backend.github[0].path
+  user      = var.github_username
   policies  = [vault_policy.human[0].name]
-}
-
-# ------------------------------------------------------------------------------
-# Identity Entity Aliases
-#
-# Each alias links an auth-method-specific login identity to the shared entity.
-# The alias name must match the value of the role's user_claim at login time:
-#   - GitHub Actions : user_claim = "repository"              → value = "org/repo"
-#   - HCP Terraform  : user_claim = "terraform_workspace_name" → value = workspace name
-#   - Userpass        : alias name = username
-#   - GitHub PAT      : alias name = GitHub login (username)
-# ------------------------------------------------------------------------------
-
-resource "vault_identity_entity_alias" "github" {
-  count = var.github_jwt_repository != null ? 1 : 0
-
-  namespace      = vault_namespace.demo.path_fq
-  name           = var.github_jwt_repository
-  mount_accessor = vault_jwt_auth_backend.jwt_github[0].accessor
-  canonical_id   = vault_identity_entity.nhi[0].id
-}
-
-resource "vault_identity_entity_alias" "hcp_terraform" {
-  count = var.hcp_jwt_workspace_name != null ? 1 : 0
-
-  namespace      = vault_namespace.demo.path_fq
-  name           = var.hcp_jwt_workspace_name
-  mount_accessor = vault_jwt_auth_backend.jwt_hcp[0].accessor
-  canonical_id   = vault_identity_entity.nhi[0].id
-}
-
-resource "vault_identity_entity_alias" "userpass" {
-  count = var.hi_userpass_username != null ? 1 : 0
-
-  namespace      = vault_namespace.demo.path_fq
-  name           = var.hi_userpass_username
-  mount_accessor = vault_auth_backend.userpass[0].accessor
-  canonical_id   = vault_identity_entity.hi[0].id
-}
-
-resource "vault_identity_entity_alias" "github_hi" {
-  count = var.hi_github_username != null ? 1 : 0
-
-  namespace      = vault_namespace.demo.path_fq
-  name           = var.hi_github_username
-  mount_accessor = vault_github_auth_backend.hi[0].accessor
-  canonical_id   = vault_identity_entity.hi[0].id
-}
-
-# ------------------------------------------------------------------------------
-# KVv2 Secrets Engine
-# ------------------------------------------------------------------------------
-
-resource "vault_mount" "kvv2" {
-  namespace   = vault_namespace.demo.path_fq
-  path        = var.kv_mount_path
-  type        = "kv"
-  description = var.kv_mount_description
-
-  options = {
-    version = "2"
-  }
-}
-
-# NHI demo secret — always created with the KVv2 mount.
-resource "vault_kv_secret_v2" "nhi" {
-  namespace           = vault_namespace.demo.path_fq
-  mount               = vault_mount.kvv2.path
-  name                = var.nhi_kv_secret_name
-  delete_all_versions = true
-
-  data_json = jsonencode(var.nhi_kv_secret_data)
-}
-
-# HI demo secret — created only when at least one HI auth method is enabled.
-resource "vault_kv_secret_v2" "hi" {
-  count = (var.hi_userpass_username != null || var.hi_github_username != null) ? 1 : 0
-
-  namespace           = vault_namespace.demo.path_fq
-  mount               = vault_mount.kvv2.path
-  name                = var.hi_kv_secret_name
-  delete_all_versions = true
-
-  data_json = jsonencode(var.hi_kv_secret_data)
 }
 
 # ------------------------------------------------------------------------------
@@ -317,7 +260,7 @@ resource "vault_kv_secret_v2" "hi" {
 #
 # Two distinct entities are created to clearly separate concerns:
 #   - nhi: represents the application/machine identity (GitHub Actions, HCP Terraform)
-#   - human: represents the human operator identity (userpass, GitHub PAT)
+#   - hi: represents the human operator identity (userpass, GitHub PAT)
 # Auth-method-specific aliases are linked to their respective entity so that
 # policies, audit logs, and metadata remain cleanly separated.
 # ------------------------------------------------------------------------------
@@ -331,11 +274,99 @@ resource "vault_identity_entity" "nhi" {
   metadata  = var.nhi_entity_metadata
 }
 
-# Human identity entity — created only when at least one HI auth method is enabled.
+# HI entity — created only when at least one HI auth method is enabled.
 resource "vault_identity_entity" "hi" {
-  count = (var.hi_userpass_username != null || var.hi_github_username != null) ? 1 : 0
+  count = (var.userpass_username != null || var.github_username != null) ? 1 : 0
 
   namespace = vault_namespace.demo.path_fq
   name      = var.hi_entity_name
   metadata  = var.hi_entity_metadata
+}
+
+# ------------------------------------------------------------------------------
+# Identity Entity Aliases
+#
+# Each alias links an auth-method-specific login identity to the shared entity.
+# The alias name must match the value of the role's user_claim at login time:
+#   - GitHub Actions : user_claim = "repository"              → value = "org/repo"
+#   - HCP Terraform  : user_claim = "terraform_workspace_name" → value = workspace name
+#   - Userpass        : alias name = username
+#   - GitHub PAT      : alias name = GitHub login (username)
+# ------------------------------------------------------------------------------
+
+resource "vault_identity_entity_alias" "jwt_github" {
+  count = var.github_jwt_repository != null ? 1 : 0
+
+  namespace      = vault_namespace.demo.path_fq
+  name           = var.github_jwt_repository
+  mount_accessor = vault_jwt_auth_backend.jwt_github[0].accessor
+  canonical_id   = vault_identity_entity.nhi[0].id
+}
+
+resource "vault_identity_entity_alias" "jwt_hcp" {
+  count = var.hcp_jwt_workspace_name != null ? 1 : 0
+
+  namespace      = vault_namespace.demo.path_fq
+  name           = var.hcp_jwt_workspace_name
+  mount_accessor = vault_jwt_auth_backend.jwt_hcp[0].accessor
+  canonical_id   = vault_identity_entity.nhi[0].id
+}
+
+resource "vault_identity_entity_alias" "userpass" {
+  count = var.userpass_username != null ? 1 : 0
+
+  namespace      = vault_namespace.demo.path_fq
+  name           = var.userpass_username
+  mount_accessor = vault_auth_backend.userpass[0].accessor
+  canonical_id   = vault_identity_entity.hi[0].id
+}
+
+resource "vault_identity_entity_alias" "github" {
+  count = var.github_username != null ? 1 : 0
+
+  namespace      = vault_namespace.demo.path_fq
+  name           = var.github_username
+  mount_accessor = vault_github_auth_backend.github[0].accessor
+  canonical_id   = vault_identity_entity.hi[0].id
+}
+
+# ------------------------------------------------------------------------------
+# KVv2 Secrets Engine
+# ------------------------------------------------------------------------------
+
+resource "vault_mount" "kvv2" {
+  count = var.kv_mount_path != null ? 1 : 0
+
+  namespace   = vault_namespace.demo.path_fq
+  path        = var.kv_mount_path
+  type        = "kv"
+  description = var.kv_mount_description
+
+  options = {
+    version = "2"
+  }
+}
+
+# NHI demo secret — created only when the KVv2 mount is enabled and at least one NHI auth method is configured.
+resource "vault_kv_secret_v2" "nhi" {
+  count = length(vault_mount.kvv2) > 0 && (var.github_jwt_repository != null || var.hcp_jwt_workspace_name != null) ? 1 : 0
+
+  namespace           = vault_namespace.demo.path_fq
+  mount               = vault_mount.kvv2[0].path
+  name                = var.nhi_kv_secret_name
+  delete_all_versions = true
+
+  data_json = jsonencode(var.nhi_kv_secret_data)
+}
+
+# HI demo secret — created only when the KVv2 mount is enabled and at least one HI auth method is configured.
+resource "vault_kv_secret_v2" "hi" {
+  count = length(vault_mount.kvv2) > 0 && (var.userpass_username != null || var.github_username != null) ? 1 : 0
+
+  namespace           = vault_namespace.demo.path_fq
+  mount               = vault_mount.kvv2[0].path
+  name                = var.hi_kv_secret_name
+  delete_all_versions = true
+
+  data_json = jsonencode(var.hi_kv_secret_data)
 }

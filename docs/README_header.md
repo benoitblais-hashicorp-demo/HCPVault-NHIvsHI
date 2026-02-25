@@ -33,8 +33,9 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
    - `vault_address`: URL of the HCP Vault Dedicated cluster (supplied via `VAULT_ADDR` environment variable or `providers.tf`).
    - `github_jwt_repository`: Trusted repository in `org/repo` format. Set to enable the NHI GitHub Actions auth method.
    - `hcp_jwt_workspace_name`: Workspace name. Set to enable the NHI HCP Terraform auth method.
-   - `hi_userpass_username` / `hi_userpass_password`: Set to enable the HI userpass auth method.
-   - `hi_github_username` / `hi_github_org`: Set to enable the HI GitHub PAT auth method.
+   - `kv_mount_path`: Mount path for the KVv2 secrets engine (e.g., `secret`). Set to enable the KVv2 mount and demo secrets.
+   - `userpass_username`: Set to enable the HI userpass auth method. The password is automatically generated.
+   - `github_username` / `github_org`: Set to enable the HI GitHub PAT auth method.
 
 3. **How Non-Human Identities Authenticate (NHI Flow)**:
 
@@ -48,10 +49,10 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
        url: ${{ secrets.VAULT_ADDR }}
        namespace: ${{ secrets.VAULT_NAMESPACE }}
        method: jwt
-       path: github
-       role: github-actions
+       path: jwt_github
+       role: jwt_github
        jwtGithubAudience: https://vault.hashicorp.cloud
-       secrets: secret/data/demo/nhi-credentials *
+       secrets: <kv_mount_path>/data/demo/nhi-credentials *
    ```
 
    **HCP Terraform** — The workspace uses dynamic provider credentials. HCP Terraform automatically generates and injects a short-lived
@@ -73,10 +74,10 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
    ```bash
    vault login -method=userpass \
      -path=userpass \
-     username=<hi_userpass_username> \
-     password=<hi_userpass_password>
+     username=<userpass_username> \
+     password=<userpass_password output>
 
-   vault kv get secret/demo/hi-credentials
+   vault kv get <kv_mount_path>/demo/hi-credentials
    ```
 
    **GitHub Personal Access Token** — The operator authenticates using a PAT generated in the GitHub UI. The token is a static secret
@@ -87,7 +88,7 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
      -path=github-hi \
      token=<github_PAT>
 
-   vault kv get secret/demo/hi-credentials
+   vault kv get <kv_mount_path>/demo/hi-credentials
    ```
 
 ## Permissions
@@ -131,7 +132,7 @@ Documentation:
 ## Features
 
 - **Child namespace isolation** — All resources are created inside a dedicated child namespace, keeping the demo completely separate from other workloads.
-- **KVv2 secrets engine** — A versioned key-value secrets engine is mounted in the child namespace with two pre-populated demo secrets: one scoped to NHI (`demo/nhi-credentials`) and one scoped to HI (`demo/hi-credentials`).
+- **KVv2 secrets engine** — A versioned key-value secrets engine is mounted at the path configured by `kv_mount_path` (e.g., `secret`) in the child namespace with two pre-populated demo secrets: one scoped to NHI (`demo/nhi-credentials`) and one scoped to HI (`demo/hi-credentials`). The mount and secrets are only created when `kv_mount_path` is set.
 - **Two distinct identity entities** — `nhi-demo-app` groups all machine auth methods; `hi-demo-operator` groups all human auth methods. Both are visible in the Vault UI under **Access → Entities**.
 - **GitHub Actions JWT auth (NHI)** — Configured against `https://token.actions.githubusercontent.com`. Access is restricted to a single repository via the `repository` bound claim. Token TTL: 5 minutes.
 - **HCP Terraform JWT auth (NHI)** — Configured against `https://app.terraform.io`. Access is restricted to a single workspace via the `terraform_workspace_name` bound claim. Token TTL: 5 minutes.
