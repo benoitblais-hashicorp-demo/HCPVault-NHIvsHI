@@ -571,6 +571,10 @@ Description: Mount path of the GitHub Actions JWT auth backend in the child name
 
 Description: Name of the Vault role that GitHub Actions workflows must use during login. Null when github\_repository is not set.
 
+### <a name="output_github_policy_name"></a> [github\_policy\_name](#output\_github\_policy\_name)
+
+Description: Name of the Vault policy attached to the GitHub Actions JWT role. Null when github\_repository is not set.
+
 ### <a name="output_hcp_terraform_jwt_backend_accessor"></a> [hcp\_terraform\_jwt\_backend\_accessor](#output\_hcp\_terraform\_jwt\_backend\_accessor)
 
 Description: Accessor of the HCP Terraform JWT auth backend in the child namespace. Null when hcp\_terraform\_workspace\_name is not set.
@@ -582,6 +586,10 @@ Description: Mount path of the HCP Terraform JWT auth backend in the child names
 ### <a name="output_hcp_terraform_jwt_role_name"></a> [hcp\_terraform\_jwt\_role\_name](#output\_hcp\_terraform\_jwt\_role\_name)
 
 Description: Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp\_terraform\_workspace\_name is not set.
+
+### <a name="output_hcp_terraform_policy_name"></a> [hcp\_terraform\_policy\_name](#output\_hcp\_terraform\_policy\_name)
+
+Description: Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp\_terraform\_workspace\_name is not set.
 
 ### <a name="output_hi_entity_id"></a> [hi\_entity\_id](#output\_hi\_entity\_id)
 
@@ -603,6 +611,10 @@ Description: Mount path of the GitHub PAT auth backend in the child namespace. N
 
 Description: Full KVv2 API path of the Human Identity demo secret. Null when no HI auth method is configured.
 
+### <a name="output_hi_policy_name"></a> [hi\_policy\_name](#output\_hi\_policy\_name)
+
+Description: Name of the Vault policy attached to all Human Identity roles. Null when no HI auth method is configured.
+
 ### <a name="output_hi_userpass_backend_accessor"></a> [hi\_userpass\_backend\_accessor](#output\_hi\_userpass\_backend\_accessor)
 
 Description: Accessor of the userpass auth backend in the child namespace. Null when hi\_userpass\_username is not set.
@@ -610,6 +622,14 @@ Description: Accessor of the userpass auth backend in the child namespace. Null 
 ### <a name="output_hi_userpass_backend_path"></a> [hi\_userpass\_backend\_path](#output\_hi\_userpass\_backend\_path)
 
 Description: Mount path of the userpass auth backend in the child namespace. Null when hi\_userpass\_username is not set.
+
+### <a name="output_hi_userpass_password"></a> [hi\_userpass\_password](#output\_hi\_userpass\_password)
+
+Description: Password configured for the userpass auth method. Null when hi\_userpass\_password is not set.
+
+### <a name="output_hi_userpass_username"></a> [hi\_userpass\_username](#output\_hi\_userpass\_username)
+
+Description: Username configured for the userpass auth method. Null when hi\_userpass\_username is not set.
 
 ### <a name="output_kv_mount_path"></a> [kv\_mount\_path](#output\_kv\_mount\_path)
 
