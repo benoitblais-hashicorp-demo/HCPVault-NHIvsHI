@@ -32,8 +32,8 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
 2. **All Variables Are Optional** — Every variable has a default value so the demo can be applied with minimal configuration. Override
    only what is needed for your environment:
    - `vault_address`: URL of the HCP Vault Dedicated cluster (supplied via `VAULT_ADDR` environment variable or `providers.tf`).
-   - `github_repository`: Trusted repository in `org/repo` format. Set to enable the NHI GitHub Actions auth method.
-   - `hcp_terraform_workspace_name`: Workspace name. Set to enable the NHI HCP Terraform auth method.
+   - `github_jwt_repository`: Trusted repository in `org/repo` format. Set to enable the NHI GitHub Actions auth method.
+   - `hcp_jwt_workspace_name`: Workspace name. Set to enable the NHI HCP Terraform auth method.
    - `hi_userpass_username` / `hi_userpass_password`: Set to enable the HI userpass auth method.
    - `hi_github_username` / `hi_github_org`: Set to enable the HI GitHub PAT auth method.
 
@@ -169,7 +169,7 @@ No required inputs.
 
 The following input variables are optional (have default values):
 
-### <a name="input_github_audience"></a> [github\_audience](#input\_github\_audience)
+### <a name="input_github_jwt_audience"></a> [github\_jwt\_audience](#input\_github\_jwt\_audience)
 
 Description: (Optional) The JWT audience that GitHub Actions workflows must request when generating an OIDC token. Must match the 'audience' parameter in the 'id-token' step of the workflow.
 
@@ -191,7 +191,7 @@ Description: (Optional) Path to mount the JWT auth backend for the GitHub Action
 
 Type: `string`
 
-Default: `"github"`
+Default: `"jwt_github"`
 
 ### <a name="input_github_jwt_bound_issuer"></a> [github\_jwt\_bound\_issuer](#input\_github\_jwt\_bound\_issuer)
 
@@ -209,23 +209,15 @@ Type: `string`
 
 Default: `"https://token.actions.githubusercontent.com"`
 
-### <a name="input_github_jwt_role_name"></a> [github\_jwt\_role\_name](#input\_github\_jwt\_role\_name)
-
-Description: (Optional) Name of the Vault role used by GitHub Actions workflows during JWT login.
-
-Type: `string`
-
-Default: `"github-actions"`
-
-### <a name="input_github_policy_name"></a> [github\_policy\_name](#input\_github\_policy\_name)
+### <a name="input_github_jwt_policy_name"></a> [github\_jwt\_policy\_name](#input\_github\_jwt\_policy\_name)
 
 Description: (Optional) The name of the Vault policy attached to the GitHub Actions JWT role.
 
 Type: `string`
 
-Default: `"github-readonly"`
+Default: `"jwt_github"`
 
-### <a name="input_github_repository"></a> [github\_repository](#input\_github\_repository)
+### <a name="input_github_jwt_repository"></a> [github\_jwt\_repository](#input\_github\_jwt\_repository)
 
 Description: (Optional) Trusted GitHub repository in 'organization/repository' format (e.g., 'my-org/my-repo'). When set, the GitHub Actions JWT auth method is configured and only workflows from this repository can authenticate. Set to null to skip GitHub auth entirely.
 
@@ -233,7 +225,15 @@ Type: `string`
 
 Default: `null`
 
-### <a name="input_github_token_max_ttl"></a> [github\_token\_max\_ttl](#input\_github\_token\_max\_ttl)
+### <a name="input_github_jwt_role_name"></a> [github\_jwt\_role\_name](#input\_github\_jwt\_role\_name)
+
+Description: (Optional) Name of the Vault role used by GitHub Actions workflows during JWT login.
+
+Type: `string`
+
+Default: `"jwt_github"`
+
+### <a name="input_github_jwt_token_max_ttl"></a> [github\_jwt\_token\_max\_ttl](#input\_github\_jwt\_token\_max\_ttl)
 
 Description: (Optional) Maximum lifetime of a GitHub Actions Vault token, in seconds.
 
@@ -241,7 +241,7 @@ Type: `number`
 
 Default: `600`
 
-### <a name="input_github_token_ttl"></a> [github\_token\_ttl](#input\_github\_token\_ttl)
+### <a name="input_github_jwt_token_ttl"></a> [github\_jwt\_token\_ttl](#input\_github\_jwt\_token\_ttl)
 
 Description: (Optional) Default lifetime of a GitHub Actions Vault token, in seconds.
 
@@ -249,7 +249,7 @@ Type: `number`
 
 Default: `300`
 
-### <a name="input_hcp_terraform_jwt_backend_description"></a> [hcp\_terraform\_jwt\_backend\_description](#input\_hcp\_terraform\_jwt\_backend\_description)
+### <a name="input_hcp_jwt_backend_description"></a> [hcp\_jwt\_backend\_description](#input\_hcp\_jwt\_backend\_description)
 
 Description: (Optional) The description of the HCP Terraform JWT auth backend.
 
@@ -257,7 +257,7 @@ Type: `string`
 
 Default: `"JWT auth method for HCP Terraform workload identity tokens."`
 
-### <a name="input_hcp_terraform_jwt_backend_path"></a> [hcp\_terraform\_jwt\_backend\_path](#input\_hcp\_terraform\_jwt\_backend\_path)
+### <a name="input_hcp_jwt_backend_path"></a> [hcp\_jwt\_backend\_path](#input\_hcp\_jwt\_backend\_path)
 
 Description: (Optional) Path to mount the JWT auth backend for the HCP Terraform JWT.
 
@@ -265,7 +265,7 @@ Type: `string`
 
 Default: `"hcp-terraform"`
 
-### <a name="input_hcp_terraform_jwt_bound_issuer"></a> [hcp\_terraform\_jwt\_bound\_issuer](#input\_hcp\_terraform\_jwt\_bound\_issuer)
+### <a name="input_hcp_jwt_bound_issuer"></a> [hcp\_jwt\_bound\_issuer](#input\_hcp\_jwt\_bound\_issuer)
 
 Description: (Optional) Expected issuer (iss claim) of HCP Terraform workload identity JWT tokens.
 
@@ -273,7 +273,7 @@ Type: `string`
 
 Default: `"https://app.terraform.io"`
 
-### <a name="input_hcp_terraform_jwt_discovery_url"></a> [hcp\_terraform\_jwt\_discovery\_url](#input\_hcp\_terraform\_jwt\_discovery\_url)
+### <a name="input_hcp_jwt_discovery_url"></a> [hcp\_jwt\_discovery\_url](#input\_hcp\_jwt\_discovery\_url)
 
 Description: (Optional) OIDC discovery URL used by Vault to retrieve the HCP Terraform JWKS and validate token signatures.
 
@@ -281,15 +281,7 @@ Type: `string`
 
 Default: `"https://app.terraform.io"`
 
-### <a name="input_hcp_terraform_jwt_role_name"></a> [hcp\_terraform\_jwt\_role\_name](#input\_hcp\_terraform\_jwt\_role\_name)
-
-Description: (Optional) Name of the Vault role used by the HCP Terraform workspace during JWT login.
-
-Type: `string`
-
-Default: `"hcp-terraform-workspace"`
-
-### <a name="input_hcp_terraform_policy_name"></a> [hcp\_terraform\_policy\_name](#input\_hcp\_terraform\_policy\_name)
+### <a name="input_hcp_jwt_policy_name"></a> [hcp\_jwt\_policy\_name](#input\_hcp\_jwt\_policy\_name)
 
 Description: (Optional) Name of the Vault policy attached to the HCP Terraform JWT role.
 
@@ -297,7 +289,15 @@ Type: `string`
 
 Default: `"hcp-terraform-readonly"`
 
-### <a name="input_hcp_terraform_token_max_ttl"></a> [hcp\_terraform\_token\_max\_ttl](#input\_hcp\_terraform\_token\_max\_ttl)
+### <a name="input_hcp_jwt_role_name"></a> [hcp\_jwt\_role\_name](#input\_hcp\_jwt\_role\_name)
+
+Description: (Optional) Name of the Vault role used by the HCP Terraform workspace during JWT login.
+
+Type: `string`
+
+Default: `"hcp-terraform-workspace"`
+
+### <a name="input_hcp_jwt_token_max_ttl"></a> [hcp\_jwt\_token\_max\_ttl](#input\_hcp\_jwt\_token\_max\_ttl)
 
 Description: (Optional) Maximum lifetime of an HCP Terraform Vault token, in seconds.
 
@@ -305,7 +305,7 @@ Type: `number`
 
 Default: `600`
 
-### <a name="input_hcp_terraform_token_ttl"></a> [hcp\_terraform\_token\_ttl](#input\_hcp\_terraform\_token\_ttl)
+### <a name="input_hcp_jwt_token_ttl"></a> [hcp\_jwt\_token\_ttl](#input\_hcp\_jwt\_token\_ttl)
 
 Description: (Optional) Default lifetime of an HCP Terraform Vault token, in seconds.
 
@@ -313,7 +313,7 @@ Type: `number`
 
 Default: `300`
 
-### <a name="input_hcp_terraform_workspace_name"></a> [hcp\_terraform\_workspace\_name](#input\_hcp\_terraform\_workspace\_name)
+### <a name="input_hcp_jwt_workspace_name"></a> [hcp\_jwt\_workspace\_name](#input\_hcp\_jwt\_workspace\_name)
 
 Description: (Optional) The HCP Terraform workspace name that is allowed to access the KVv2 secret. When set, the HCP Terraform JWT auth method is configured and only runs from this workspace can authenticate. Set to null to skip HCP Terraform auth entirely.
 
@@ -537,23 +537,23 @@ The following resources are used by this module:
 - [vault_generic_endpoint.userpass_user](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/generic_endpoint) (resource)
 - [vault_github_auth_backend.hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/github_auth_backend) (resource)
 - [vault_github_user.hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/github_user) (resource)
-- [vault_identity_entity.human](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity) (resource)
+- [vault_identity_entity.hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity) (resource)
 - [vault_identity_entity.nhi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity) (resource)
 - [vault_identity_entity_alias.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
 - [vault_identity_entity_alias.github_hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
 - [vault_identity_entity_alias.hcp_terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
 - [vault_identity_entity_alias.userpass](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/identity_entity_alias) (resource)
-- [vault_jwt_auth_backend.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend) (resource)
-- [vault_jwt_auth_backend.hcp_terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend) (resource)
-- [vault_jwt_auth_backend_role.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend_role) (resource)
-- [vault_jwt_auth_backend_role.hcp_terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend_role) (resource)
+- [vault_jwt_auth_backend.jwt_github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend) (resource)
+- [vault_jwt_auth_backend.jwt_hcp](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend) (resource)
+- [vault_jwt_auth_backend_role.jwt_github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend_role) (resource)
+- [vault_jwt_auth_backend_role.jwt_hcp](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/jwt_auth_backend_role) (resource)
 - [vault_kv_secret_v2.hi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/kv_secret_v2) (resource)
 - [vault_kv_secret_v2.nhi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/kv_secret_v2) (resource)
 - [vault_mount.kvv2](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/mount) (resource)
 - [vault_namespace.demo](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/namespace) (resource)
-- [vault_policy.github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
-- [vault_policy.hcp_terraform](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
 - [vault_policy.human](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
+- [vault_policy.jwt_github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
+- [vault_policy.jwt_hcp](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
 
 ## Outputs
 
@@ -561,35 +561,35 @@ The following outputs are exported:
 
 ### <a name="output_github_jwt_backend_accessor"></a> [github\_jwt\_backend\_accessor](#output\_github\_jwt\_backend\_accessor)
 
-Description: Accessor of the GitHub Actions JWT auth backend in the child namespace. Null when github\_repository is not set.
+Description: Accessor of the GitHub Actions JWT auth backend in the child namespace. Null when github\_jwt\_repository is not set.
 
 ### <a name="output_github_jwt_backend_path"></a> [github\_jwt\_backend\_path](#output\_github\_jwt\_backend\_path)
 
-Description: Mount path of the GitHub Actions JWT auth backend in the child namespace. Null when github\_repository is not set.
+Description: Mount path of the GitHub Actions JWT auth backend in the child namespace. Null when github\_jwt\_repository is not set.
+
+### <a name="output_github_jwt_policy_name"></a> [github\_jwt\_policy\_name](#output\_github\_jwt\_policy\_name)
+
+Description: Name of the Vault policy attached to the GitHub Actions JWT role. Null when github\_jwt\_repository is not set.
 
 ### <a name="output_github_jwt_role_name"></a> [github\_jwt\_role\_name](#output\_github\_jwt\_role\_name)
 
-Description: Name of the Vault role that GitHub Actions workflows must use during login. Null when github\_repository is not set.
-
-### <a name="output_github_policy_name"></a> [github\_policy\_name](#output\_github\_policy\_name)
-
-Description: Name of the Vault policy attached to the GitHub Actions JWT role. Null when github\_repository is not set.
+Description: Name of the Vault role that GitHub Actions workflows must use during login. Null when github\_jwt\_repository is not set.
 
 ### <a name="output_hcp_terraform_jwt_backend_accessor"></a> [hcp\_terraform\_jwt\_backend\_accessor](#output\_hcp\_terraform\_jwt\_backend\_accessor)
 
-Description: Accessor of the HCP Terraform JWT auth backend in the child namespace. Null when hcp\_terraform\_workspace\_name is not set.
+Description: Accessor of the HCP Terraform JWT auth backend in the child namespace. Null when hcp\_jwt\_workspace\_name is not set.
 
 ### <a name="output_hcp_terraform_jwt_backend_path"></a> [hcp\_terraform\_jwt\_backend\_path](#output\_hcp\_terraform\_jwt\_backend\_path)
 
-Description: Mount path of the HCP Terraform JWT auth backend in the child namespace. Null when hcp\_terraform\_workspace\_name is not set.
+Description: Mount path of the HCP Terraform JWT auth backend in the child namespace. Null when hcp\_jwt\_workspace\_name is not set.
 
 ### <a name="output_hcp_terraform_jwt_role_name"></a> [hcp\_terraform\_jwt\_role\_name](#output\_hcp\_terraform\_jwt\_role\_name)
 
-Description: Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp\_terraform\_workspace\_name is not set.
+Description: Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp\_jwt\_workspace\_name is not set.
 
 ### <a name="output_hcp_terraform_policy_name"></a> [hcp\_terraform\_policy\_name](#output\_hcp\_terraform\_policy\_name)
 
-Description: Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp\_terraform\_workspace\_name is not set.
+Description: Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp\_jwt\_workspace\_name is not set.
 
 ### <a name="output_hi_entity_id"></a> [hi\_entity\_id](#output\_hi\_entity\_id)
 
