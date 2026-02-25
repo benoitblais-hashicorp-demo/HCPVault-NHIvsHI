@@ -83,7 +83,33 @@ output "nhi_kv_secret_path" {
   value       = "${var.kv_mount_path}/data/${var.nhi_kv_secret_name}"
 }
 
+output "github_policy_name" {
+  description = "Name of the Vault policy attached to the GitHub Actions JWT role. Null when github_repository is not set."
+  value       = try(vault_policy.github[0].name, null)
+}
+
+output "hcp_terraform_policy_name" {
+  description = "Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp_terraform_workspace_name is not set."
+  value       = try(vault_policy.hcp_terraform[0].name, null)
+}
+
+output "hi_policy_name" {
+  description = "Name of the Vault policy attached to all Human Identity roles. Null when no HI auth method is configured."
+  value       = try(vault_policy.human[0].name, null)
+}
+
+output "hi_userpass_password" {
+  description = "Password configured for the userpass auth method. Null when hi_userpass_password is not set."
+  value       = var.hi_userpass_password != null ? nonsensitive(var.hi_userpass_password) : null
+}
+
+output "hi_userpass_username" {
+  description = "Username configured for the userpass auth method. Null when hi_userpass_username is not set."
+  value       = var.hi_userpass_username
+}
+
 output "namespace_path" {
   description = "Fully qualified path of the child namespace."
   value       = vault_namespace.demo.path_fq
 }
+

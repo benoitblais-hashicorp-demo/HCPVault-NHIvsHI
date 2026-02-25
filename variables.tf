@@ -461,3 +461,4 @@ variable "nhi_kv_secret_name" {
     error_message = "`nhi_kv_secret_name` must be a non-empty path containing only alphanumeric characters, hyphens, underscores, and forward slashes."
   }
 }
+
