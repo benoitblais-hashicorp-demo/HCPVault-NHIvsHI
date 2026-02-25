@@ -209,14 +209,6 @@ Type: `string`
 
 Default: `"https://token.actions.githubusercontent.com"`
 
-### <a name="input_github_jwt_policy_name"></a> [github\_jwt\_policy\_name](#input\_github\_jwt\_policy\_name)
-
-Description: (Optional) The name of the Vault policy attached to the GitHub Actions JWT role.
-
-Type: `string`
-
-Default: `"jwt_github"`
-
 ### <a name="input_github_jwt_repository"></a> [github\_jwt\_repository](#input\_github\_jwt\_repository)
 
 Description: (Optional) Trusted GitHub repository in 'organization/repository' format (e.g., 'my-org/my-repo'). When set, the GitHub Actions JWT auth method is configured and only workflows from this repository can authenticate. Set to null to skip GitHub auth entirely.
@@ -280,14 +272,6 @@ Description: (Optional) OIDC discovery URL used by Vault to retrieve the HCP Ter
 Type: `string`
 
 Default: `"https://app.terraform.io"`
-
-### <a name="input_hcp_jwt_policy_name"></a> [hcp\_jwt\_policy\_name](#input\_hcp\_jwt\_policy\_name)
-
-Description: (Optional) Name of the Vault policy attached to the HCP Terraform JWT role.
-
-Type: `string`
-
-Default: `"hcp-terraform-readonly"`
 
 ### <a name="input_hcp_jwt_role_name"></a> [hcp\_jwt\_role\_name](#input\_hcp\_jwt\_role\_name)
 
@@ -552,8 +536,7 @@ The following resources are used by this module:
 - [vault_mount.kvv2](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/mount) (resource)
 - [vault_namespace.demo](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/namespace) (resource)
 - [vault_policy.human](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
-- [vault_policy.jwt_github](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
-- [vault_policy.jwt_hcp](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
+- [vault_policy.nhi](https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/policy) (resource)
 
 ## Outputs
 
@@ -566,10 +549,6 @@ Description: Accessor of the GitHub Actions JWT auth backend in the child namesp
 ### <a name="output_github_jwt_backend_path"></a> [github\_jwt\_backend\_path](#output\_github\_jwt\_backend\_path)
 
 Description: Mount path of the GitHub Actions JWT auth backend in the child namespace. Null when github\_jwt\_repository is not set.
-
-### <a name="output_github_jwt_policy_name"></a> [github\_jwt\_policy\_name](#output\_github\_jwt\_policy\_name)
-
-Description: Name of the Vault policy attached to the GitHub Actions JWT role. Null when github\_jwt\_repository is not set.
 
 ### <a name="output_github_jwt_role_name"></a> [github\_jwt\_role\_name](#output\_github\_jwt\_role\_name)
 
@@ -586,10 +565,6 @@ Description: Mount path of the HCP Terraform JWT auth backend in the child names
 ### <a name="output_hcp_terraform_jwt_role_name"></a> [hcp\_terraform\_jwt\_role\_name](#output\_hcp\_terraform\_jwt\_role\_name)
 
 Description: Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp\_jwt\_workspace\_name is not set.
-
-### <a name="output_hcp_terraform_policy_name"></a> [hcp\_terraform\_policy\_name](#output\_hcp\_terraform\_policy\_name)
-
-Description: Name of the Vault policy attached to the HCP Terraform JWT role. Null when hcp\_jwt\_workspace\_name is not set.
 
 ### <a name="output_hi_entity_id"></a> [hi\_entity\_id](#output\_hi\_entity\_id)
 
@@ -650,6 +625,10 @@ Description: Name of the Non-Human Identity Vault entity. Null when no NHI auth 
 ### <a name="output_nhi_kv_secret_path"></a> [nhi\_kv\_secret\_path](#output\_nhi\_kv\_secret\_path)
 
 Description: Full KVv2 API path of the Non-Human Identity demo secret (for use with the Vault CLI or API).
+
+### <a name="output_nhi_policy_name"></a> [nhi\_policy\_name](#output\_nhi\_policy\_name)
+
+Description: Name of the shared Vault policy attached to all NHI JWT roles. Null when no NHI auth method is configured.
 
 <!-- markdownlint-enable -->
 # External Documentation
