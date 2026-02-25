@@ -95,6 +95,11 @@ resource "vault_policy" "github" {
       capabilities = ["read"]
     }
 
+    # Allow the Vault provider to validate its token on initialization.
+    path "auth/token/lookup-self" {
+      capabilities = ["read"]
+    }
+
     # Allow token self-renewal and self-revocation.
     path "auth/token/renew-self" {
       capabilities = ["update"]
@@ -163,6 +168,11 @@ resource "vault_policy" "hcp_terraform" {
   # KVv2 stores secrets under the '<mount>/data/<path>' API endpoint.
   policy = <<-EOT
     path "${var.kv_mount_path}/data/${var.nhi_kv_secret_name}" {
+      capabilities = ["read"]
+    }
+
+    # Allow the Vault provider to validate its token on initialization.
+    path "auth/token/lookup-self" {
       capabilities = ["read"]
     }
 
