@@ -41,6 +41,7 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
 
    **GitHub Actions** — The workflow requests a short-lived OIDC token from GitHub and exchanges it for a Vault token. No static secret
    is stored anywhere.
+
    ```yaml
    - name: Get Vault secret via OIDC
      uses: hashicorp/vault-action@v3
@@ -56,6 +57,7 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
 
    **HCP Terraform** — The workspace uses dynamic provider credentials. HCP Terraform automatically generates and injects a short-lived
    JWT token into each run. No static Vault token is stored in the workspace.
+
    ```hcl
    # Workspace environment variables (set in HCP Terraform UI or via API):
    # TFC_VAULT_ADDR          = <vault_address>
@@ -68,6 +70,7 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
 
    **Userpass** — The operator authenticates with a username and password typed directly into the terminal. The password is a static
    secret that must be stored, remembered, and rotated manually.
+
    ```bash
    vault login -method=userpass \
      -path=userpass \
@@ -79,6 +82,7 @@ or forgotten. Both resolve to Vault entities, making the difference immediately 
 
    **GitHub Personal Access Token** — The operator authenticates using a PAT generated in the GitHub UI. The token is a static secret
    that can be copied, shared, or accidentally committed to a repository.
+
    ```bash
    vault login -method=github \
      -path=github-hi \
@@ -628,12 +632,12 @@ Description: Name of the Non-Human Identity Vault entity. Null when no NHI auth 
 Description: Full KVv2 API path of the Non-Human Identity demo secret (for use with the Vault CLI or API).
 
 <!-- markdownlint-enable -->
-## External Documentation
+# External Documentation
 
 The following resources were used to build this configuration:
 
 | Topic | Link |
-|---|---|
+| --- | --- |
 | Vault Namespaces | [https://developer.hashicorp.com/vault/docs/enterprise/namespaces](https://developer.hashicorp.com/vault/docs/enterprise/namespaces) |
 | KV Secrets Engine v2 | [https://developer.hashicorp.com/vault/docs/secrets/kv/kv-v2](https://developer.hashicorp.com/vault/docs/secrets/kv/kv-v2) |
 | JWT/OIDC Auth Method | [https://developer.hashicorp.com/vault/docs/auth/jwt](https://developer.hashicorp.com/vault/docs/auth/jwt) |
