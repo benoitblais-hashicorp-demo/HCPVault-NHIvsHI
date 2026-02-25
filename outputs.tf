@@ -45,7 +45,7 @@ output "hcp_terraform_jwt_backend_path" {
 
 output "hcp_terraform_jwt_role_name" {
   description = "Name of the Vault role that the HCP Terraform workspace must use for dynamic provider credentials. Null when hcp_jwt_workspace_name is not set."
-  value       = try(vault_jwt_auth_backend_role.hcp_terraform[0].role_name, null)
+  value       = try(vault_jwt_auth_backend_role.jwt_hcp[0].role_name, null)
 }
 
 output "hi_github_backend_accessor" {
