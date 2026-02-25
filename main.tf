@@ -95,6 +95,11 @@ resource "vault_policy" "github" {
       capabilities = ["read"]
     }
 
+    # Allow the Vault provider to validate its token on initialization.
+    path "auth/token/lookup-self" {
+      capabilities = ["read"]
+    }
+
     # Allow token self-renewal and self-revocation.
     path "auth/token/renew-self" {
       capabilities = ["update"]
@@ -137,10 +142,10 @@ resource "vault_jwt_auth_backend_role" "github" {
   # entity alias name, enabling consistent identity across workflow runs.
   user_claim = "repository"
 
-  token_policies           = [vault_policy.github[0].name]
-  token_ttl                = var.github_token_ttl
-  token_max_ttl            = var.github_token_max_ttl
-  token_no_default_policy  = true
+  token_policies          = [vault_policy.github[0].name]
+  token_ttl               = var.github_token_ttl
+  token_max_ttl           = var.github_token_max_ttl
+  token_no_default_policy = true
 }
 
 # ------------------------------------------------------------------------------
@@ -163,6 +168,11 @@ resource "vault_policy" "hcp_terraform" {
   # KVv2 stores secrets under the '<mount>/data/<path>' API endpoint.
   policy = <<-EOT
     path "${var.kv_mount_path}/data/${var.nhi_kv_secret_name}" {
+      capabilities = ["read"]
+    }
+
+    # Allow the Vault provider to validate its token on initialization.
+    path "auth/token/lookup-self" {
       capabilities = ["read"]
     }
 
@@ -207,10 +217,10 @@ resource "vault_jwt_auth_backend_role" "hcp_terraform" {
   # Use the workspace name as the Vault entity alias for auditability.
   user_claim = "terraform_workspace_name"
 
-  token_policies           = [vault_policy.hcp_terraform[0].name]
-  token_ttl                = var.hcp_terraform_token_ttl
-  token_max_ttl            = var.hcp_terraform_token_max_ttl
-  token_no_default_policy  = true
+  token_policies          = [vault_policy.hcp_terraform[0].name]
+  token_ttl               = var.hcp_terraform_token_ttl
+  token_max_ttl           = var.hcp_terraform_token_max_ttl
+  token_no_default_policy = true
 }
 
 # ------------------------------------------------------------------------------
@@ -266,7 +276,7 @@ resource "vault_generic_endpoint" "userpass_user" {
   ignore_absent_fields = true
 
   data_json = jsonencode({
-    password      = var.hi_userpass_password
+    password       = var.hi_userpass_password
     token_policies = [vault_policy.human[0].name]
     token_ttl      = var.hi_userpass_token_ttl
     token_max_ttl  = var.hi_userpass_token_max_ttl
