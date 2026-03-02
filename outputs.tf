@@ -67,4 +67,3 @@ output "userpass_username" {
   description = "Username configured for the userpass auth method. Null when userpass_username is not set."
   value       = var.userpass_username
 }
-
